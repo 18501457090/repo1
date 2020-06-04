@@ -1,0 +1,60 @@
+package com.weibin.aio.socket;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousServerSocketChannel;
+import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.CompletionHandler;
+import java.nio.channels.Selector;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @Desc:
+ * @author: zwb
+ * @Date: 2020/1/18
+ **/
+public class AsynchronousServerSocketChannelTest_4 {
+
+    public static void main(String[] args) throws IOException {
+        AsynchronousServerSocketChannel socketChannel = AsynchronousServerSocketChannel.open();
+        socketChannel.bind(new InetSocketAddress("localhost",8088));
+        socketChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Void>() {
+            @Override
+            public void completed(AsynchronousSocketChannel outResult, Void attachment) {
+                socketChannel.accept(null,this);
+                ByteBuffer byteBuffer = ByteBuffer.allocate(Integer.MAX_VALUE / 100);
+                outResult.read(byteBuffer, 10, TimeUnit.SECONDS, null, new CompletionHandler<Integer, Void>() {
+                    @Override
+                    public void completed(Integer result, Void attachment) {
+                        if (result == -1){
+                            System.out.println("客户端没有传入数据就执行close了，到stream end");
+                        }
+                        if (result == byteBuffer.limit()){
+                            System.out.println("服务端获得客户端完整数据");
+                        }
+                        try {
+                            outResult.close();
+                            System.out.println("服务端close");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable exc, Void attachment) {
+                        exc.printStackTrace();
+                        System.out.println("exc2 : " + exc.getMessage());
+                    }
+                });
+            }
+            @Override
+            public void failed(Throwable exc, Void attachment) {
+                exc.printStackTrace();
+                System.out.println("exc1 : " + exc.getMessage());
+            }
+        });
+        while (true);
+    }
+
+}
